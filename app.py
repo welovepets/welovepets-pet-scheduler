@@ -303,17 +303,21 @@ def remove_appointment_section(section_idx):
 
 def render_appointment_section(section_idx, section_data, service_types_df, use_sidebar=False):
     """Render form for a single appointment section"""
-    # Use sidebar widgets if requested
-    streamlit_ref = st.sidebar if use_sidebar else st
+    # Create expander - use sidebar if requested, otherwise main area
+    if use_sidebar:
+        expander = st.sidebar.expander(f"Appointment {section_idx + 1}", expanded=True)
+    else:
+        expander = st.expander(f"Appointment {section_idx + 1}", expanded=True)
     
-    with streamlit_ref.expander(f"Section {section_idx + 1}", expanded=True):
+    # All widgets must be created inside the expander context
+    with expander:
         # Service Type Dropdown
         service_type_names = service_types_df['name'].tolist() if not service_types_df.empty else []
         if not service_type_names:
-            streamlit_ref.warning("No service types available. Please add service types first.")
+            st.warning("No service types available. Please add service types first.")
             return
         
-        selected_service_type = streamlit_ref.selectbox(
+        selected_service_type = st.selectbox(
             "Service Type",
             options=service_type_names,
             index=0 if section_data.get('service_type') not in service_type_names 
@@ -329,17 +333,17 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
         section_data['uses_end_date'] = uses_end_date
         
         # Date/Time fields based on uses_end_date
-        col1, col2 = streamlit_ref.columns(2)
+        col1, col2 = st.columns(2)
         
         with col1:
-            start_date = streamlit_ref.date_input(
+            start_date = st.date_input(
                 "Start Date",
                 value=section_data.get('start_date', date.today()),
                 key=f"start_date_{section_idx}"
             )
         
         with col2:
-            start_time = streamlit_ref.time_input(
+            start_time = st.time_input(
                 "Start Time",
                 value=section_data.get('start_time', time(9, 0)),
                 key=f"start_time_{section_idx}"
@@ -360,7 +364,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
                 if current_duration not in duration_options:
                     current_duration = min(duration_options, key=lambda x: abs(x - current_duration))
                 
-                duration = streamlit_ref.selectbox(
+                duration = st.selectbox(
                     "Duration (minutes)",
                     options=duration_options,
                     index=duration_options.index(current_duration) if current_duration in duration_options else 0,
@@ -368,7 +372,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
                 )
             else:
                 # Fallback to number input if no options found
-                duration = streamlit_ref.number_input(
+                duration = st.number_input(
                     "Duration (minutes)",
                     min_value=1,
                     value=section_data.get('duration', 60),
@@ -382,9 +386,9 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
                 del section_data['end_time']
         else:
             # Show end date and end time
-            col3, col4 = streamlit_ref.columns(2)
+            col3, col4 = st.columns(2)
             with col3:
-                end_date = streamlit_ref.date_input(
+                end_date = st.date_input(
                     "End Date",
                     value=section_data.get('end_date', date.today()),
                     key=f"end_date_{section_idx}"
@@ -392,7 +396,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
                 section_data['end_date'] = end_date
             
             with col4:
-                end_time = streamlit_ref.time_input(
+                end_time = st.time_input(
                     "End Time",
                     value=section_data.get('end_time', time(17, 0)),
                     key=f"end_time_{section_idx}"
@@ -403,7 +407,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
                 del section_data['duration']
         
         # Customers Section - Multiple customers with number of pets
-        streamlit_ref.subheader("Customers")
+        st.subheader("Customers")
         
         # Initialize customers list if not exists
         if 'customers' not in section_data or not isinstance(section_data.get('customers'), list):
@@ -418,11 +422,11 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
         
         # Display each customer
         for customer_idx, customer in enumerate(customers_list):
-            col_cust1, col_cust2, col_cust3 = streamlit_ref.columns([2, 2, 1])
+            col_cust1, col_cust2, col_cust3 = st.columns([2, 2, 1])
             with col_cust1:
                 pets_options = ["1 pet", "2 pets", "3 pets", "4 pets"]
                 current_pets = customer.get('number_of_pets', "1 pet")
-                selected_pets = streamlit_ref.selectbox(
+                selected_pets = st.selectbox(
                     f"Customer {customer_idx + 1} - Number of Pets",
                     options=pets_options,
                     index=pets_options.index(current_pets) if current_pets in pets_options else 0,
@@ -433,7 +437,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
             with col_cust2:
                 price_tier_options = ["Price Tier 1", "Price Tier 2", "Price Tier 3"]
                 current_price_tier = customer.get('price_tier', "Price Tier 1")
-                selected_price_tier = streamlit_ref.selectbox(
+                selected_price_tier = st.selectbox(
                     f"Customer {customer_idx + 1} - Price Tier",
                     options=price_tier_options,
                     index=price_tier_options.index(current_price_tier) if current_price_tier in price_tier_options else 0,
@@ -444,13 +448,13 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
             with col_cust3:
                 # Allow removing customer if there's more than one
                 if len(customers_list) > 1:
-                    if streamlit_ref.button("Remove", key=f"remove_customer_{section_idx}_{customer_idx}", type="secondary"):
+                    if st.button("Remove", key=f"remove_customer_{section_idx}_{customer_idx}", type="secondary"):
                         customers_list.pop(customer_idx)
                         st.session_state['appointment_sections'][section_idx] = section_data
                         st.rerun()
         
         # Add Customer button
-        if streamlit_ref.button("➕ Add Customer", key=f"add_customer_{section_idx}"):
+        if st.button("➕ Add Customer", key=f"add_customer_{section_idx}"):
             customers_list.append({"number_of_pets": "1 pet", "price_tier": "Price Tier 1"})
             section_data['customers'] = customers_list
             st.session_state['appointment_sections'][section_idx] = section_data
@@ -460,10 +464,10 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
         section_data['customers'] = customers_list
         
         # Staff Pay Tier
-        streamlit_ref.subheader("Staff Pay Tier")
+        st.subheader("Staff Pay Tier")
         pay_tier_options = ["Pay Tier 1", "Pay Tier 2", "Pay Tier 3"]
         current_pay_tier = section_data.get('staff_pay_tier', "Pay Tier 1")
-        selected_pay_tier = streamlit_ref.selectbox(
+        selected_pay_tier = st.selectbox(
             "Staff Pay Tier",
             options=pay_tier_options,
             index=pay_tier_options.index(current_pay_tier) if current_pay_tier in pay_tier_options else 0,
@@ -472,7 +476,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
         section_data['staff_pay_tier'] = selected_pay_tier
         
         # Recurring Checkbox
-        is_recurring = streamlit_ref.checkbox(
+        is_recurring = st.checkbox(
             "Recurring",
             value=section_data.get('is_recurring', False),
             key=f"is_recurring_{section_idx}"
@@ -481,12 +485,12 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
         
         # Recurring fields (shown when checkbox is checked)
         if is_recurring:
-            streamlit_ref.subheader("Recurring Options")
+            st.subheader("Recurring Options")
             
             # Recurring End Date - default to 1 month from start date
             start_date_value = section_data.get('start_date', date.today())
             default_end_date = add_months(start_date_value, 1) if 'recurring_end_date' not in section_data else section_data.get('recurring_end_date')
-            recurring_end_date = streamlit_ref.date_input(
+            recurring_end_date = st.date_input(
                 "Recurring End Date",
                 value=default_end_date,
                 key=f"recurring_end_date_{section_idx}"
@@ -494,9 +498,9 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
             section_data['recurring_end_date'] = recurring_end_date
             
             # Recurring Every and Frequency (reordered)
-            col5, col6 = streamlit_ref.columns(2)
+            col5, col6 = st.columns(2)
             with col5:
-                recurring_every = streamlit_ref.number_input(
+                recurring_every = st.number_input(
                     "Recurring Every",
                     min_value=1,
                     max_value=30,
@@ -507,7 +511,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
             
             with col6:
                 frequency_options = ["day", "week", "month", "year"]
-                recurring_frequency = streamlit_ref.selectbox(
+                recurring_frequency = st.selectbox(
                     "Recurring Frequency",
                     options=frequency_options,
                     index=frequency_options.index(section_data.get('recurring_frequency', "week"))
@@ -518,7 +522,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
             
             # Days of Week Checkboxes (only show if frequency is "week")
             if recurring_frequency == "week":
-                streamlit_ref.write("Days of Week:")
+                st.write("Days of Week:")
                 days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
                 selected_days = section_data.get('recurring_days', [])
                 
@@ -530,19 +534,18 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
                     # Update section_data with the default day
                     section_data['recurring_days'] = selected_days
                 
-                cols = streamlit_ref.columns(7)
+                cols = st.columns(7)
                 recurring_days = []
                 for idx, day in enumerate(days_of_week):
                     with cols[idx]:
                         checkbox_key = f"recurring_day_{day}_{section_idx}"
-                        # Initialize checkbox state if not in session state
+                        # Use session state value if exists, otherwise use default
                         should_be_checked = day in selected_days
-                        if checkbox_key not in st.session_state:
-                            st.session_state[checkbox_key] = should_be_checked
+                        checkbox_value = st.session_state.get(checkbox_key, should_be_checked)
                         
-                        is_checked = streamlit_ref.checkbox(
-                            day[:3],  # Show abbreviated: Mon, Tue, etc.
-                            value=st.session_state[checkbox_key],
+                        is_checked = st.checkbox(
+                            day[0],  # Show first letter: M, T, W, etc.
+                            value=checkbox_value,
                             key=checkbox_key
                         )
                         if is_checked:
@@ -560,7 +563,7 @@ def render_appointment_section(section_idx, section_data, service_types_df, use_
         
         # Remove Section button (hide for first section)
         if section_idx > 0:
-            if streamlit_ref.button("Remove Section", key=f"remove_section_{section_idx}", type="secondary"):
+            if st.button("Remove Section", key=f"remove_section_{section_idx}", type="secondary"):
                 remove_appointment_section(section_idx)
         
         # Update session state
@@ -1083,7 +1086,11 @@ def render_appointments_list_tab():
         filtered_appointments = []
         selected_month = "All appointments"
     
-    st.header("Appointments")
+    # Set header based on filter selection
+    if selected_month == "All appointments":
+        st.header("All Appointments")
+    else:
+        st.header(f"Appointments in {selected_month}")
     
     # Customer Invoice Section - placed above appointments
     if filtered_appointments:
